@@ -1,242 +1,203 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:freela_app/core/firebase/firebase_config.dart';
+import 'package:freela_app/features/components/nav_bar.dart';
+import 'package:freela_app/features/home/views/chat_list_screen.dart';
+import 'package:freela_app/features/home/views/history_screen.dart';
+import 'package:freela_app/features/home/views/profile._screen.dart';
+import 'package:freela_app/features/home/views/search_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+
+  void _onItemTapped(int index) {
+    setState(() => _selectedIndex = index);
+  }
+
+  // Método temporário para o QR Code
+  void _scanQRCode(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Funcionalidade de QR Code em desenvolvimento')),
+    );
+  }
+
+  // Navegação para a tela de busca
+  void _navigateToSearch(BuildContext context) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => const SearchScreen()));
+  }
+
+  // Widget para títulos de seção
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  // Grid de freelancers (placeholder)
+  Widget _buildFreelancersGrid() {
+    return SizedBox(
+      height: 200,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: 5,
+        itemBuilder: (context, index) {
+          return const Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: FreelancerCard(),
+          );
+        },
+      ),
+    );
+  }
+
+  // Lista de serviços populares (placeholder)
+  Widget _buildPopularServices() {
+    return Column(
+      children: List.generate(
+        5,
+        (index) => ListTile(
+          leading: const Icon(Icons.design_services),
+          title: Text('Serviço ${index + 1}'),
+          subtitle: const Text('Descrição do serviço'),
+          trailing: const Icon(Icons.arrow_forward_ios),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home'),
+        title: const Text('Freelancer Connect'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _testFirestoreConnection(context),
+            icon: const Icon(Icons.qr_code_scanner),
+            onPressed: () => _scanQRCode(context),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildTestSection(),
-          Expanded(child: _buildFreelancersList()),
-        ],
+      body: _buildCurrentScreen(),
+      bottomNavigationBar: CustomNavBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
       ),
     );
   }
 
-  Widget _buildTestSection() {
-    return Card(
-      margin: const EdgeInsets.all(16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const Text('Teste do Banco de Dados',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _addTestData,
-              child: const Text('Adicionar Dados de Teste'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFreelancersList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseConfig.firestore
-          .collection('usuarios')
-          .where('tipo', isEqualTo: 'prestador')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text('Erro: ${snapshot.error}'));
-        }
-
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final documents = snapshot.data!.docs;
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: documents.length,
-          itemBuilder: (context, index) {
-            final data = documents[index].data() as Map<String, dynamic>;
-            return FreelancerCard(
-              name: data['nome'] ?? 'Nome não informado',
-              rating: (data['avaliacao'] ?? 0.0).toDouble(),
-              service: data['servico'] ?? 'Serviço não definido',
-              onTap: () => _showFreelancerDetails(context, data),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _addTestData() async {
-    try {
-      await FirebaseConfig.firestore.collection('usuarios').add({
-        'nome': 'Teste Freelancer',
-        'servico': 'Desenvolvimento Flutter',
-        'avaliacao': 4.8,
-        'tipo': 'prestador',
-        'data_criacao': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      debugPrint('Erro ao adicionar dados: $e');
+  Widget _buildCurrentScreen() {
+    switch (_selectedIndex) {
+      case 0:
+        return _buildHomeContent();
+      case 1:
+        return const SearchScreen();
+      case 2:
+        return const ChatListScreen();
+      case 3:
+        return const HistoryScreen();
+      case 4:
+        return const ProfileScreen();
+      default:
+        return const SizedBox.shrink();
     }
   }
 
-  void _showFreelancerDetails(BuildContext context, Map<String, dynamic> data) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(data['nome']),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Serviço: ${data['servico']}'),
-            Text('Avaliação: ${data['avaliacao']}'),
-            Text('Tipo: ${data['tipo']}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
+  Widget _buildHomeContent() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: SearchBar(
+            hintText: 'Buscar serviços...',
+            onTap: () => _navigateToSearch(context),
           ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              _buildSectionTitle('Tops da Região'),
+              _buildFreelancersGrid(),
+              _buildSectionTitle('Mais Pedidos'),
+              _buildPopularServices(),
+            ],
+          ),
+        ),
+      ],
     );
-  }
-
-  void _testFirestoreConnection(BuildContext context) {
-    FirebaseConfig.firestore
-        .collection('testes')
-        .add({'timestamp': FieldValue.serverTimestamp()})
-        .then((_) => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Conexão com Firestore bem sucedida!')),
-            ))
-        .catchError((error) => ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Erro na conexão: $error')),
-            ));
   }
 }
 
+// Widget temporário do card de freelancer
 class FreelancerCard extends StatelessWidget {
-  final String name;
-  final double rating;
-  final String service;
-  final String imageUrl;
-  final VoidCallback? onTap;
-
-  const FreelancerCard({
-    super.key,
-    required this.name,
-    required this.rating,
-    required this.service,
-    this.imageUrl = 'https://picsum.photos/200',
-    this.onTap,
-  });
+  const FreelancerCard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 160,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.2),
-              spreadRadius: 2,
-              blurRadius: 5,
-              offset: const Offset(0, 2),
+    return Container(
+      width: 160,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 2,
+            blurRadius: 5,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                'https://picsum.photos/200',
+                fit: BoxFit.cover,
+                width: double.infinity,
+              ),
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded / 
-                              loadingProgress.expectedTotalBytes!
-                            : null,
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.person, size: 50),
-                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Nome do Freelancer',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                Row(
+                  children: [
+                    const Icon(Icons.star, color: Colors.amber, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      '4.8',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.star, color: Colors.amber[700], size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        rating.toStringAsFixed(1),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const Spacer(),
-                      Flexible(
-                        child: Text(
-                          service,
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
