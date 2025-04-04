@@ -10,6 +10,7 @@ class SignUpScreen extends StatelessWidget {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _telefoneController = TextEditingController();
 
   SignUpScreen({super.key}); // Adicionado const
 
@@ -60,6 +61,14 @@ class SignUpScreen extends StatelessWidget {
                       prefixIcon: Icon(Icons.lock)),
                     validator: Validators.password,
                   ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _telefoneController,
+                    decoration: const InputDecoration(
+                      labelText: 'Telefone',
+                      prefixIcon: Icon(Icons.call)),
+                    validator: Validators.telefone,
+                  ),
                   const SizedBox(height: 30),
                   ElevatedButton(
                     onPressed: () {
@@ -68,7 +77,8 @@ class SignUpScreen extends StatelessWidget {
                           SignUpEvent(
                             name: _nameController.text.trim(),
                             email: _emailController.text.trim(),
-                            password: _passwordController.text.trim(),
+                            password: _passwordController.text.trim(), 
+                            telefone: _telefoneController.text.trim()
                           ),
                         );
                       }

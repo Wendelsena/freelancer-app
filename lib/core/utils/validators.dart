@@ -18,4 +18,10 @@ class Validators {
     if (value.length < 6) return 'Mínimo 6 caracteres';
     return null;
   }
+
+    static String? telefone(String? value) {
+    if (value == null || value.isEmpty) return 'Telefone obrigatório';
+    if (value.length < 6) return 'Contato incorreto';
+    return null;
+  }
 }
