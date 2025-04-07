@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:freela_app/features/chat/views/chat_screen.dart';
 import 'package:freela_app/features/freelancer/domain/freelancer_model.dart';
+import 'package:freela_app/features/chat/views/chat_screen.dart';
 import 'package:freela_app/features/services/views/service_request_screen.dart';
 
 class FreelancerProfileScreen extends StatelessWidget {
   final String freelancerId;
 
-  const FreelancerProfileScreen({super.key, required this.freelancerId});
+  const FreelancerProfileScreen({
+    super.key,
+    required this.freelancerId,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance
-            .collection('usuarios')
+            .collection('prestadores')
             .doc(freelancerId)
             .get(),
         builder: (context, snapshot) {
@@ -26,19 +29,8 @@ class FreelancerProfileScreen extends StatelessWidget {
             return const Center(child: Text('Prestador não encontrado'));
           }
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
-          final freelancer = Freelancer(
-            id: freelancerId,
-            name: data['nome'] ?? 'Nome não informado',
-            rating: (data['avaliacao'] ?? 0.0).toDouble(),
-            service: data['servico'] ?? 'Serviço não definido',
-            bio: data['bio'] ?? 'Sem descrição',
-            profileImage: data['foto'] ?? 'https://picsum.photos/200',
-            portfolio: List<String>.from(data['portfolio'] ?? []),
-            reviews: _parseReviews(data['avaliacoes']),
-            location: data['localizacao'] ?? 'Local não informado',
-            completedJobs: data['servicos_concluidos'] ?? 0,
-          );
+          // Converte o DocumentSnapshot em um objeto Freelancer
+          final freelancer = Freelancer.fromFirestore(snapshot.data!);
 
           return CustomScrollView(
             slivers: [
@@ -46,7 +38,7 @@ class FreelancerProfileScreen extends StatelessWidget {
                 expandedHeight: 200,
                 flexibleSpace: FlexibleSpaceBar(
                   background: Image.network(
-                    freelancer.profileImage,
+                    freelancer.fotoUrl,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -71,16 +63,6 @@ class FreelancerProfileScreen extends StatelessWidget {
     );
   }
 
-  List<Review> _parseReviews(dynamic data) {
-    if (data is! List) return [];
-    return data.map<Review>((item) => Review(
-      user: item['usuario'] ?? '',
-      rating: (item['avaliacao'] ?? 0.0).toDouble(),
-      comment: item['comentario'] ?? '',
-      date: (item['data'] as Timestamp).toDate(),
-    )).toList();
-  }
-
   void _showContactOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -102,23 +84,23 @@ class FreelancerProfileScreen extends StatelessWidget {
     );
   }
 
-void _navigateToChat(BuildContext context) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => ChatScreen(freelancerId: freelancerId),
-    ),
-  );
-}
+  void _navigateToChat(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(freelancerId: freelancerId),
+      ),
+    );
+  }
 
-void _navigateToServiceRequest(BuildContext context) {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => ServiceRequestScreen(freelancerId: freelancerId),
-    ),
-  );
-}
+  void _navigateToServiceRequest(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ServiceRequestScreen(freelancerId: freelancerId),
+      ),
+    );
+  }
 }
 
 // Componente: Cabeçalho do Perfil
@@ -135,7 +117,7 @@ class _ProfileHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            freelancer.name,
+            freelancer.nome,
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -147,13 +129,16 @@ class _ProfileHeader extends StatelessWidget {
               Icon(Icons.star, color: Colors.amber[700], size: 20),
               const SizedBox(width: 4),
               Text(
-                freelancer.rating.toStringAsFixed(1),
+                freelancer.avaliacaoMedia.toStringAsFixed(1),
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(width: 16),
-              Icon(Icons.location_on, color: Colors.grey[600], size: 20),
+              Icon(Icons.location_on, color: Colors.grey, size: 20),
               const SizedBox(width: 4),
-              Text(freelancer.location),
+              Text(
+                '${freelancer.localizacao.latitude.toStringAsFixed(4)}, '
+                '${freelancer.localizacao.longitude.toStringAsFixed(4)}',
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -181,9 +166,9 @@ class _ServiceInfo extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildInfoRow('Serviço Principal', freelancer.service),
+            _buildInfoRow('Serviços', freelancer.servicos.join(', ')),
             _buildInfoRow('Experiência', '2 anos'),
-            _buildInfoRow('Serviços Concluídos', '${freelancer.completedJobs}'),
+            _buildInfoRow('Serviços Concluídos', freelancer.servicosConcluidos.toString()),
             _buildInfoRow('Preço Médio', 'R\$ 150,00'),
           ],
         ),
@@ -256,6 +241,15 @@ class _ReviewsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reviews = freelancer.reviews;
+
+    if (reviews.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('Ainda não há avaliações.'),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -266,7 +260,7 @@ class _ReviewsSection extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          ...freelancer.reviews.map((review) => _ReviewItem(review: review)),
+          ...reviews.map((review) => _ReviewItem(review: review)),
         ],
       ),
     );
@@ -297,14 +291,14 @@ class _ReviewItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        review.user,
+                        review.usuario,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Row(
                         children: [
                           Icon(Icons.star, color: Colors.amber[700], size: 16),
                           const SizedBox(width: 4),
-                          Text(review.rating.toStringAsFixed(1)),
+                          Text(review.avaliacao.toStringAsFixed(1)),
                         ],
                       ),
                     ],
@@ -313,7 +307,7 @@ class _ReviewItem extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(review.comment),
+            Text(review.comentario),
           ],
         ),
       ),

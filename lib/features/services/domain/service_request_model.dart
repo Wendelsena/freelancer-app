@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ServiceRequest {
   final String id;
   final String freelancerId;
@@ -21,6 +23,23 @@ class ServiceRequest {
     required this.createdAt,
   });
 
+  // Remover o getter 'prazo' incorreto (usar 'deadline' diretamente)
+
+  factory ServiceRequest.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return ServiceRequest(
+      id: doc.id,
+      freelancerId: data['freelancerId'],
+      clientId: data['clientId'],
+      title: data['title'],
+      description: data['description'],
+      budget: data['budget'].toDouble(),
+      deadline: (data['deadline'] as Timestamp).toDate(),
+      status: data['status'],
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'freelancerId': freelancerId,
@@ -28,9 +47,9 @@ class ServiceRequest {
       'title': title,
       'description': description,
       'budget': budget,
-      'deadline': deadline,
+      'deadline': Timestamp.fromDate(deadline), // Converter para Timestamp
       'status': status,
-      'createdAt': createdAt,
+      'createdAt': Timestamp.fromDate(createdAt), // Converter para Timestamp
     };
   }
 }

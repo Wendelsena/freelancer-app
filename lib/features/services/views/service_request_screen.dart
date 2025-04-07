@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:freela_app/features/services/domain/service_request_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
-import 'package:freela_app/features/services/domain/service_request_model.dart';
+
 
 class ServiceRequestScreen extends StatefulWidget {
   final String freelancerId;
 
-  const ServiceRequestScreen({super.key, required this.freelancerId});
+  const ServiceRequestScreen({
+    super.key,
+    required this.freelancerId,
+  });
 
   @override
   State<ServiceRequestScreen> createState() => _ServiceRequestScreenState();
@@ -30,7 +33,44 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              // ... (restante do código igual)
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(labelText: 'Título'),
+                validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
+              ),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(labelText: 'Descrição'),
+                maxLines: 5,
+                validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
+              ),
+              TextFormField(
+                controller: _budgetController,
+                decoration: const InputDecoration(labelText: 'Orçamento (R\$)'),
+                keyboardType: TextInputType.number,
+                validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
+              ),
+              ListTile(
+                title: Text(_selectedDeadline == null
+                    ? 'Selecione o prazo'
+                    : 'Prazo: ${_selectedDeadline!.toLocal().toString()}'),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime(2025),
+                  );
+                  if (date != null) {
+                    setState(() => _selectedDeadline = date);
+                  }
+                },
+              ),
+              ElevatedButton(
+                onPressed: _submitRequest,
+                child: const Text('Enviar Solicitação'),
+              ),
             ],
           ),
         ),
@@ -45,7 +85,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
         if (user == null) throw Exception('Usuário não autenticado');
 
         final request = ServiceRequest(
-          id: '',
+          id: '', // Firestore gera o ID automaticamente
           freelancerId: widget.freelancerId,
           clientId: user.uid,
           title: _titleController.text,
@@ -58,7 +98,7 @@ class _ServiceRequestScreenState extends State<ServiceRequestScreen> {
 
         await FirebaseFirestore.instance
             .collection('solicitacoes')
-            .add(request.toMap());
+            .add(request.toMap()); // Usar toMap() corrigido
 
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(

@@ -14,9 +14,9 @@ class _ServiceInfo extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _buildInfoRow('Serviço Principal', freelancer.service),
+            _buildInfoRow('Serviço Principal', freelancer.servicos as String),
             _buildInfoRow('Experiência', '2 anos'),
-            _buildInfoRow('Serviços Concluídos', '${freelancer.completedJobs}'),
+            _buildInfoRow('Serviços Concluídos', '${freelancer.servicosConcluidos}'),
             _buildInfoRow('Preço Médio', 'R\$ 150,00'),
           ],
         ),
