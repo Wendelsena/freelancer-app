@@ -4,7 +4,7 @@ import 'package:freela_app/core/firebase/firebase_config.dart';
 import 'package:freela_app/features/auth/bloc/auth_bloc.dart';
 import 'package:freela_app/features/auth/views/login_screen.dart';
 import 'package:freela_app/features/auth/views/signup_screen.dart';
-import 'package:freela_app/features/home/views/home_screen.dart'; // Importação adicionada
+import 'package:freela_app/features/home/views/home_screen.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -81,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Freelancer Connect'),
+        title: const Text('Zelo'),
         actions: [
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:freela_app/features/freelancer/domain/freelancer_model.dart';
 import 'package:freela_app/features/chat/views/chat_screen.dart';
 import 'package:freela_app/features/services/views/service_request_screen.dart';
@@ -11,6 +14,48 @@ class FreelancerProfileScreen extends StatelessWidget {
     super.key,
     required this.freelancerId,
   });
+
+  Future<void> _registerAccess() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> recent = prefs.getStringList('recentFreelancers') ?? [];
+    recent.remove(freelancerId);
+    recent.insert(0, freelancerId);
+    if (recent.length > 5) recent.removeLast();
+    await prefs.setStringList('recentFreelancers', recent);
+  }
+
+  // Método para construir a seção de localização
+  Widget _buildLocationSection(GeoPoint localizacao) {
+    return ListTile(
+      leading: const Icon(Icons.location_on, color: Colors.red),
+      title: const Text('Localização Atual'),
+      subtitle: Text(
+        '${localizacao.latitude.toStringAsFixed(4)}, '
+        '${localizacao.longitude.toStringAsFixed(4)}',
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.map),
+        onPressed: () => _abrirMapa(localizacao),
+      ),
+    );
+  }
+
+  // Método para abrir o mapa
+  Future<void> _abrirMapa(GeoPoint localizacao) async {
+    final Uri url = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query='
+      '${localizacao.latitude},${localizacao.longitude}'
+    );
+
+    if (await canLaunchUrl(url)) {
+      await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      );
+    } else {
+      throw 'Não foi possível abrir o mapa';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +74,9 @@ class FreelancerProfileScreen extends StatelessWidget {
             return const Center(child: Text('Prestador não encontrado'));
           }
 
-          // Converte o DocumentSnapshot em um objeto Freelancer
+          // Registra o acesso após o carregamento
+          WidgetsBinding.instance.addPostFrameCallback((_) => _registerAccess());
+
           final freelancer = Freelancer.fromFirestore(snapshot.data!);
 
           return CustomScrollView(
@@ -46,6 +93,7 @@ class FreelancerProfileScreen extends StatelessWidget {
               SliverList(
                 delegate: SliverChildListDelegate([
                   _ProfileHeader(freelancer: freelancer),
+                  _buildLocationSection(freelancer.localizacao),
                   _ServiceInfo(freelancer: freelancer),
                   _PortfolioSection(freelancer: freelancer),
                   _ReviewsSection(freelancer: freelancer),
@@ -63,6 +111,7 @@ class FreelancerProfileScreen extends StatelessWidget {
     );
   }
 
+  // Métodos de contato
   void _showContactOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -103,7 +152,7 @@ class FreelancerProfileScreen extends StatelessWidget {
   }
 }
 
-// Componente: Cabeçalho do Perfil
+
 class _ProfileHeader extends StatelessWidget {
   final Freelancer freelancer;
 
@@ -152,7 +201,7 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-// Componente: Informações do Serviço
+
 class _ServiceInfo extends StatelessWidget {
   final Freelancer freelancer;
 
@@ -268,6 +317,7 @@ class _ReviewsSection extends StatelessWidget {
 }
 
 // Componente: Item de Avaliação
+// Substitua o widget _ReviewItem por:
 class _ReviewItem extends StatelessWidget {
   final Review review;
 
@@ -284,22 +334,26 @@ class _ReviewItem extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.person_outline, size: 40),
+                CircleAvatar(
+                  child: Text(review.nomeUsuario[0]), // Inicial do nome
+                ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        review.usuario,
+                        review.nomeUsuario,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      Row(
-                        children: [
-                          Icon(Icons.star, color: Colors.amber[700], size: 16),
-                          const SizedBox(width: 4),
-                          Text(review.avaliacao.toStringAsFixed(1)),
-                        ],
+                      RatingBarIndicator(
+                        rating: review.avaliacao,
+                        itemBuilder: (context, _) => const Icon(
+                          Icons.star,
+                          color: Colors.amber,
+                        ),
+                        itemCount: 5,
+                        itemSize: 20,
                       ),
                     ],
                   ),
@@ -307,7 +361,15 @@ class _ReviewItem extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(review.comentario),
+            Text(
+              review.comentario,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${review.data.day}/${review.data.month}/${review.data.year}',
+              style: TextStyle(color: Colors.grey[500], fontSize: 12),
+            ),
           ],
         ),
       ),

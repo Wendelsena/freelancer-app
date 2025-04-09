@@ -11,6 +11,8 @@ class Freelancer {
   final List<String> portfolio;
   final List<Review> reviews;
   final int servicosConcluidos;
+  final List<String> searchKeywords; // Campo adicionado
+  double? distancia;
 
   Freelancer({
     required this.id,
@@ -23,50 +25,56 @@ class Freelancer {
     required this.portfolio,
     required this.reviews,
     required this.servicosConcluidos,
+    required this.searchKeywords, // Campo adicionado
+    this.distancia,
   });
 
   factory Freelancer.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-
-    // Conversão segura para servicosConcluidos
-    int parseServicosConcluidos(dynamic value) {
-      if (value is int) {
-        return value;
-      } else if (value is String) {
-        return int.tryParse(value) ?? 0;
-      }
-      return 0;
-    }
+    final data = doc.data() as Map<String, dynamic>? ?? {};
 
     return Freelancer(
       id: doc.id,
-      nome: data['nome'] as String? ?? '',
+      nome: data['nome']?.toString() ?? 'Nome não informado',
       avaliacaoMedia: (data['avaliacaoMedia'] as num?)?.toDouble() ?? 0.0,
       servicos: List<String>.from(data['servicos'] ?? []),
-      bio: data['bio'] as String? ?? '',
-      fotoUrl: data['fotoUrl'] as String? ?? '',
-      localizacao: data['localizacao'] is GeoPoint ? data['localizacao'] as GeoPoint : GeoPoint(0, 0),
+      bio: data['bio']?.toString() ?? '',
+      fotoUrl: data['fotoUrl']?.toString() ?? '',
+      localizacao: data['localizacao'] is GeoPoint
+          ? data['localizacao'] as GeoPoint
+          : const GeoPoint(0, 0),
       portfolio: List<String>.from(data['portfolio'] ?? []),
-      reviews: _parseReviews(data['avaliacoes'] ?? []),
-      servicosConcluidos: parseServicosConcluidos(data['servicos_concluidos']),
+      reviews: _parseReviews(data['avaliacoes']),
+      servicosConcluidos: (data['servicos_concluidos'] as num?)?.toInt() ?? 0,
+      searchKeywords: List<String>.from(data['searchKeywords'] ?? []), // Mapeado
+      distancia: 0.0,
     );
   }
 
-  static List<Review> _parseReviews(List<dynamic> reviews) {
-    return reviews.where((item) => item is Map<String, dynamic>).map<Review>((item) {
-      return Review.fromFirestore(item as Map<String, dynamic>);
-    }).toList();
+  static List<Review> _parseReviews(dynamic data) {
+    try {
+      if (data is List) {
+        return data
+            .whereType<Map<String, dynamic>>()
+            .map<Review>((item) => Review.fromFirestore(item))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
   }
 }
 
 class Review {
-  final String usuario;
+  final String usuarioId;
+  final String nomeUsuario; // Campo corrigido
   final double avaliacao;
   final String comentario;
   final DateTime data;
 
   Review({
-    required this.usuario,
+    required this.usuarioId,
+    required this.nomeUsuario, // Nome corrigido
     required this.avaliacao,
     required this.comentario,
     required this.data,
@@ -74,9 +82,10 @@ class Review {
 
   factory Review.fromFirestore(Map<String, dynamic> data) {
     return Review(
-      usuario: data['usuario'] as String? ?? '',
+      usuarioId: data['usuario_id']?.toString() ?? '',
+      nomeUsuario: data['nome_usuario']?.toString() ?? 'Anônimo', // Campo corrigido
       avaliacao: (data['avaliacao'] as num?)?.toDouble() ?? 0.0,
-      comentario: data['comentario'] as String? ?? '',
+      comentario: data['comentario']?.toString() ?? '',
       data: (data['data'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }

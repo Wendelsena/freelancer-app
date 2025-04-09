@@ -1,28 +1,39 @@
 import 'package:bloc/bloc.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:freela_app/features/freelancer/domain/data/freelancer_repository.dart';
-import 'package:freela_app/features/freelancer/domain/freelancer_model.dart';
-
-part 'search_event.dart';
-part 'search_state.dart';
+import 'package:freela_app/features/search/bloc/search_event.dart';
+import 'package:freela_app/features/search/bloc/search_state.dart';
 
 class SearchBloc extends Bloc<SearchEvent, SearchState> {
-  final FreelancerRepository _repository;
+  final FreelancerRepository repository;
 
-  SearchBloc(this._repository) : super(SearchInitial()) {
-    on<SearchFreelancers>(_onSearch);
+  SearchBloc(this.repository) : super(SearchInitial()) {
+    on<SearchFreelancers>(
+      _onSearch,
+      transformer: debounce(const Duration(milliseconds: 300)),
+    );
   }
 
-  Future<void> _onSearch(SearchFreelancers event, Emitter<SearchState> emit) async {
+  EventTransformer<SearchEvent> debounce<SearchEvent>(Duration duration) {
+    return (events, mapper) => events.debounceTime(duration).switchMap(mapper);
+  }
+
+  Future<void> _onSearch(
+    SearchFreelancers event,
+    Emitter<SearchState> emit,
+  ) async {
     emit(SearchLoading());
     try {
-      final results = await _repository.searchFreelancers(
+      final results = await repository.searchFreelancers(
         query: event.query,
         servico: event.servico,
-        localizacao: event.localizacao,
+        localizacaoUsuario: event.localizacaoUsuario,
+        avaliacaoMinima: event.avaliacaoMinima,
+        raioKm: event.raioKm,
       );
       emit(SearchSuccess(results));
     } catch (e) {
-      emit(SearchError('Falha na busca: ${e.toString()}'));
+      emit(SearchError(e.toString()));
     }
   }
 }
